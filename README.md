@@ -39,8 +39,8 @@
 
 ### 1. **โคลน Repository:**
 
-git clone https://github.com/puoq007/Room-Booking-System.git
-cd Room-Booking-System
+    git clone https://github.com/puoq007/Room-Booking-System.git
+    cd Room-Booking-System
 
 ### 2. การติดตั้ง Dependencies
 
