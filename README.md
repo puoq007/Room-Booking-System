@@ -78,20 +78,34 @@ cd Room-Booking-System
 #### หรือ
     flutter build appbundle
 #### หรือ
-flutter build ipa
+    flutter build ipa
 
 ### โครงสร้างไฟล์
-mobileAppProject/
-├── lib/                       # โค้ดหลักของ Flutter
-│   ├── main.dart              # จุดเริ่มต้นของแอปพลิเคชัน
-│   ├── screens/               # หน้าจอต่างๆ เช่น HomePage, BookingPage
-│   ├── models/                # โมเดลข้อมูลสำหรับ Room และ Booking
-│   ├── widgets/               # วิดเจ็ตที่สามารถนำกลับมาใช้ซ้ำได้
-│   └── services/              # บริการสำหรับ API หรือการจัดการฐานข้อมูล
-├── android/                   # โฟลเดอร์สำหรับ Android
-├── ios/                       # โฟลเดอร์สำหรับ iOS
-├── assets/                    # ไฟล์สื่อ เช่น รูปภาพ, ไอคอน
-├── build/                     # โฟลเดอร์ที่สร้างโดย Flutter (ไม่ควรนำขึ้น Git)
-├── pubspec.yaml               # รายการ dependencies และการตั้งค่าโปรเจกต์
-├── .gitignore                 # ไฟล์ที่บอก Git ว่าจะไม่ติดตามไฟล์ใด
-└── README.md                  # เอกสารโปรเจกต์
+    mobileAppProject/
+    ├── lib/                        # โค้ดหลักของ Flutter
+    │   ├── main.dart               # จุดเริ่มต้นของแอปพลิเคชัน
+    │   ├── Logo.dart               # Logo
+    │   ├── Login.dart              # Login
+    │   ├── dashboard.dart          # dashboard หลัก
+    │   ├── Register.dart           # Register
+    │   ├── approver/               # โฟลเดอร์ Approver
+    │   │   ├── apphome.dart        # Home Approver
+    │   │   ├── appnavbar.dart      # Navbar Approver
+    │   │   ├── appprofile.dart     # Profile Approver
+    │   │   ├── appprequest.dart    # Request Approver
+    │   ├── staff/                  # โฟลเดอร์ Staff
+    │   │   ├── staffhome.dart      # Home Staff
+    │   │   ├── appnav.dart         # Navbar Staff
+    │   │   ├── appprofile.dart     # Profile Staff
+    │   ├── stu/                    # โฟลเดอร์ Student
+    │   │   ├── stuHome.dart        # Home Student
+    │   │   ├── stunavbar.dart      # Navbar Student
+    │   │   ├── stuProfile.dart     # Profile Student
+    │   │   ├── stuRequest.dart     # Request Student
+    ├── android/                    # โฟลเดอร์สำหรับ Android
+    ├── ios/                        # โฟลเดอร์สำหรับ iOS
+    ├── assets/                     # ไฟล์สื่อ เช่น รูปภาพ, ไอคอน
+    ├── build/                      # โฟลเดอร์ที่สร้างโดย Flutter (ไม่ควรนำขึ้น Git)
+    ├── pubspec.yaml                # รายการ dependencies และการตั้งค่าโปรเจกต์
+    ├── .gitignore                  # ไฟล์ที่บอก Git ว่าจะไม่ติดตามไฟล์ใด
+    └── README.md                   # เอกสารโปรเจกต์
