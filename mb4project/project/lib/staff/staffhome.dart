@@ -623,7 +623,7 @@ class _AddRoomDialogState extends State<AddRoomDialog> {
                   },
                 ),
                 DropdownButtonFormField<String>(
-                  value: _selectedSize,
+                  initialValue: _selectedSize,
                   decoration: InputDecoration(labelText: 'Room Size'),
                   items: [
                     DropdownMenuItem(value: '1', child: Text('Small')),
