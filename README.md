@@ -81,7 +81,11 @@
     flutter build ipa
 
 ### โครงสร้างไฟล์
-    mobileAppProject/
+    Project/
+    ├── API/                        # ไฟล์สำหรับจัดการ Endpoints และ Logic ของ API
+    │   ├── roomPicture             # รูปห้องประชุม
+    │   ├── app.js                  # API
+    │   ├── db.js                   # Data Base
     ├── lib/                        # โค้ดหลักของ Flutter
     │   ├── main.dart               # จุดเริ่มต้นของแอปพลิเคชัน
     │   ├── Logo.dart               # Logo
