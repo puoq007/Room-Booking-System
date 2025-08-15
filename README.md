@@ -37,13 +37,48 @@
 * **Android Studio** หรือ **VS Code** (พร้อมส่วนขยาย Flutter & Dart)
 * **Emulator** หรืออุปกรณ์จริงสำหรับทดสอบ
 
-#### ขั้นตอนการติดตั้ง (Installation Steps)
+### 1. **โคลน Repository:**
 
-1.  **โคลน Repository:**
+git clone https://github.com/puoq007/Room-Booking-System.git
+cd Room-Booking-System
 
-    git clone https://github.com/puoq007/Room-Booking-System.git
-    cd Room-Booking-System
+### 2. การติดตั้ง Dependencies
 
+ก่อนรันโปรเจกต์ คุณต้องติดตั้ง Dependencies ทั้งหมดที่ระบุในไฟล์ pubspec.yaml ด้วยคำสั่ง:
+
+    flutter pub get
+
+### 3. การตั้งค่า Firebase (ถ้ามี)
+
+หากโปรเจกต์มีการใช้งาน Firebase คุณจะต้องตั้งค่า Firebase สำหรับโปรเจกต์ของคุณ:
+
+สร้างโปรเจกต์ใหม่ใน Firebase Console
+
+ทำตามขั้นตอนเพื่อเพิ่มแอปพลิเคชัน Android และ iOS
+
+ดาวน์โหลดไฟล์ google-services.json สำหรับ Android และ GoogleService-Info.plist สำหรับ iOS แล้วนำไปวางในโฟลเดอร์ที่เหมาะสมตามที่เอกสารของ Firebase ระบุ
+
+### 4. การรันแอปพลิเคชัน
+
+หลังจากติดตั้ง Dependencies และตั้งค่าต่างๆ เรียบร้อยแล้ว คุณสามารถรันแอปพลิเคชันได้บนอุปกรณ์จำลอง (Emulator) หรืออุปกรณ์จริง (Physical Device) ด้วยคำสั่ง:
+
+    flutter run
+
+หากต้องการรันบนอุปกรณ์ที่เฉพาะเจาะจง ให้ใช้คำสั่ง:
+
+    flutter run -d <device_id>
+
+คุณสามารถดูรายการอุปกรณ์ทั้งหมดได้ด้วยคำสั่ง flutter devices
+
+การสร้าง Build สำหรับ Production
+
+หากต้องการสร้างไฟล์ติดตั้ง (APK หรือ App Bundle) สำหรับ Android หรือไฟล์ .ipa สำหรับ iOS ให้ใช้คำสั่ง:
+
+    flutter build apk
+#### หรือ
+    flutter build appbundle
+#### หรือ
+flutter build ipa
 
 ### โครงสร้างไฟล์
 mobileAppProject/
