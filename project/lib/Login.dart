@@ -19,7 +19,7 @@ class Login extends StatefulWidget {
 class _LoginState extends State<Login> {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
-  String url = '192.168.1.173:5554';
+  String url = '192.168.31.90:5554';
 
 void login() async {
   String username = usernameController.text;

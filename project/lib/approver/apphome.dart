@@ -71,6 +71,7 @@ class _ApphomeState extends State<Apphome> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('TODAY: $todayDate'),
       ),
       body: _pages[_currentIndex],
@@ -95,7 +96,7 @@ class _ListroomState extends State<Listroom> {
   }
 
   Future<void> fetchRooms() async {
-    const String apiUrl = 'http://192.168.1.173:5554/room'; // URL API
+    const String apiUrl = 'http://192.168.31.90:5554/room'; // URL API
     try {
       final response = await http.get(Uri.parse(apiUrl));
       if (response.statusCode == 200) {
@@ -161,7 +162,7 @@ class _ListroomState extends State<Listroom> {
     print('image URL: ${room.imagePath}');
 
     // Base URL สำหรับรวมกับ path ของรูป
-    String imageUrl = 'http://192.168.1.173:5554${room.imagePath}';
+    String imageUrl = 'http://192.168.31.90:5554${room.imagePath}';
 
 
     return Container(

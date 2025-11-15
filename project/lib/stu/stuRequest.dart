@@ -54,7 +54,7 @@ Future<void> fetchUserIdAndData() async {
       }
 
       final response = await http.get(
-        Uri.parse('http://192.168.1.173:5554/information'),
+        Uri.parse('http://192.168.31.90:5554/information'),
         headers: {'Authorization': 'Bearer $token'}, // ใช้ token ใน header
       );
 
@@ -112,6 +112,7 @@ Future<void> fetchUserIdAndData() async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Padding(
           padding: EdgeInsets.all(15.0),
           child: Row(

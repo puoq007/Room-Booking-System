@@ -34,7 +34,7 @@ class Room {
       roomName: json['room_name'] ?? '',
       size: json['size']?.toString() ?? '',
       image: json['image'] != null && json['image'] is String
-          ? 'http://192.168.1.173:5554${json['image']}' // Full URL for the image
+          ? 'http://192.168.31.90:5554${json['image']}' // Full URL for the image
           : 'assets/images/room.png', // Default image
       slot1: json['slot_1'].toString(),
       slot2: json['slot_2'].toString(),
@@ -74,7 +74,7 @@ class _StaffHomeState extends State<Staffhome> {
     try {
       print('Fetching rooms...');
       final response = await http.get(
-        Uri.parse('http://192.168.1.173:5554/room'),
+        Uri.parse('http://192.168.31.90:5554/room'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
         },
@@ -146,6 +146,7 @@ class _StaffHomeState extends State<Staffhome> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title:
             Text('TODAY: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}'),
         actions: [
@@ -302,7 +303,7 @@ class _EditRoomDialogState extends State<EditRoomDialog> {
       }
 
       final response = await http.put(
-        Uri.parse('http://192.168.1.173:5554/room/${room.roomId}'),
+        Uri.parse('http://192.168.31.90:5554/room/${room.roomId}'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token', // ส่งโทเค็นใน headers
@@ -545,7 +546,7 @@ class _AddRoomDialogState extends State<AddRoomDialog> {
       try {
         final request = http.MultipartRequest(
           'POST',
-          Uri.parse('http://192.168.1.173:5554/add-room'),
+          Uri.parse('http://192.168.31.90:5554/add-room'),
         );
 
         request.headers.addAll({

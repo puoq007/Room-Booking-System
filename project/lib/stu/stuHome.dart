@@ -49,7 +49,7 @@ class Room {
       roomName: json['room_name'] ?? '',
       size: json['size']?.toString() ?? '',
       image: json['image'] != null && json['image'] is String
-          ? 'http://192.168.1.173:5554${json['image']}' // Full URL for the image
+          ? 'http://192.168.31.90:5554${json['image']}' // Full URL for the image
           : 'assets/images/room.png', // Default image
       slot1: json['slot_1']?.toString() ?? '',
       slot2: json['slot_2']?.toString() ?? '',
@@ -86,7 +86,7 @@ class _ListroomState extends State<Stuhome> {
   bool isLoading = true;
 
   Future<void> fetchRooms() async {
-    final response = await http.get(Uri.parse('http://192.168.1.173:5554/room'));
+    final response = await http.get(Uri.parse('http://192.168.31.90:5554/room'));
 
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
@@ -109,7 +109,7 @@ class _ListroomState extends State<Stuhome> {
     final userId = widget.userId.toString();
     try {
       final response = await http.post(
-        Uri.parse('http://192.163.1.173:5554/reserve'),
+        Uri.parse('http://192.168.31.90:5554/reserve'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'user_id': userId,
@@ -266,6 +266,7 @@ class _ListroomState extends State<Stuhome> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title:
             Text('TODAY: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}'),
       ),

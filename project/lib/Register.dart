@@ -15,7 +15,7 @@ class _RegisterState extends State<Register> {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
-  String url = '192.168.1.173:5554';
+  String url = '192.168.31.90:5554';
 
   void register() async {
     // Check if any required field is empty

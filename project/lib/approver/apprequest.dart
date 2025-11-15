@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io'; // สำหรับ File
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart'; // นำเข้า intl package
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart'; // เพิ่มสำหรับเลือกรูป
 
 class Reservation {
   String dateTime;
@@ -10,6 +12,7 @@ class Reservation {
   String username;
   String status;
   int id;
+  File? profileImage; // เพิ่มตัวแปรเก็บรูป
 
   Reservation({
     required this.id,
@@ -17,17 +20,17 @@ class Reservation {
     required this.room,
     required this.username,
     required this.status,
+    this.profileImage,
   });
 
   factory Reservation.fromJson(Map<String, dynamic> json) {
-    // จัดรูปแบบวันที่โดยใช้ DateFormat
     String formattedDate = json['booking_date'] != null
         ? DateFormat('yyyy-MM-dd').format(DateTime.parse(json['booking_date']))
         : 'N/A';
 
     return Reservation(
       id: json['id'],
-      dateTime: formattedDate, // ใช้วันที่ที่จัดรูปแบบแล้ว
+      dateTime: formattedDate,
       room: json['room_name'],
       username: json['booked_by'],
       status: _getStatusText(json['status']),
@@ -37,9 +40,9 @@ class Reservation {
   static String _getStatusText(int status) {
     switch (status) {
       case 1:
-        return 'Approved';
+        return 'Approve';
       case 2:
-        return 'Disapproved';
+        return 'Disapprove';
       default:
         return 'Pending';
     }
@@ -62,90 +65,68 @@ class _ApprequestState extends State<Apprequest> {
     _fetchPendingReservations();
   }
 
-  // Fetch Pending Reservations from the API
   Future<void> _fetchPendingReservations() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
 
-    // ตรวจสอบว่า token มีค่าหรือไม่
     if (token.isEmpty) {
-      print('No token found. User might not be logged in.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User not logged in or session expired')),
       );
       return;
     }
 
-    print('Fetching reservations with token: $token'); // Debug: print token
-
     final response = await http.get(
-      Uri.parse('http://192.168.1.173:5554/pending'),
+      Uri.parse('http://192.168.31.90:5554/pending'),
       headers: {
-        'Authorization': 'Bearer $token', // ส่ง token ไปใน header
+        'Authorization': 'Bearer $token',
       },
     );
 
-    // Debug: print response status and body
-    print('Response Status: ${response.statusCode}');
-    print('Response Body: ${response.body}');
-
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      print('Fetched data: $data'); // Debug: print fetched data
 
       setState(() {
         reservations = data.map((e) => Reservation.fromJson(e)).toList();
       });
     } else {
-      print('Failed to load reservations: ${response.statusCode}');
-      print('Response body: ${response.body}');
       throw Exception('Failed to load reservations');
     }
   }
 
-  // Update the reservation status (Approve/Disapprove)
   Future<void> _changeStatus(Reservation reservation, String newStatus) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
-
-    // ดึง user_id จาก SharedPreferences หรือจากข้อมูลที่จำเป็น
-    final userId =
-        prefs.getInt('user_id'); // สมมติว่าเก็บ user_id ไว้ใน SharedPreferences
+    final userId = prefs.getInt('user_id');
 
     if (userId == null) {
-      print('User not logged in or user_id not found');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User not logged in or session expired')),
       );
       return;
     }
 
-    // แปลงค่าของ newStatus เป็น "approve" หรือ "deny"
-    final status = newStatus.toLowerCase(); // "approve" หรือ "deny"
+    final status = newStatus.toLowerCase();
 
     final response = await http.put(
-      Uri.parse('http://192.168.1.173:5554/approve/${reservation.id}'),
+      Uri.parse('http://192.168.31.90:5554/approve/${reservation.id}'),
       body: json.encode({
-        'user_id': userId, // ส่ง user_id ไปที่ API
-        'action': status, // ส่ง action ที่ต้องการ
+        'user_id': userId,
+        'action': status,
       }),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token', // เพิ่ม token ใน header
+        'Authorization': 'Bearer $token',
       },
     );
 
     if (response.statusCode == 200) {
-      print('Status changed successfully to: $newStatus');
       _fetchPendingReservations();
     } else {
-      print('Failed to update status: ${response.statusCode}');
-      print('Response body: ${response.body}');
       throw Exception('Failed to update status');
     }
   }
 
-  // Function to get status color for the reservation status
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Approve':
@@ -159,10 +140,23 @@ class _ApprequestState extends State<Apprequest> {
     }
   }
 
+  // ฟังก์ชันเลือกรูปจากเครื่อง
+  Future<void> _pickImage(Reservation reservation) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        reservation.profileImage = File(pickedFile.path);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading:false,
         title: const Padding(
           padding: EdgeInsets.all(15.0),
           child: Row(
@@ -181,44 +175,57 @@ class _ApprequestState extends State<Apprequest> {
       body: reservations.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
+              scrollDirection: Axis.horizontal, // กันตารางล้นจอ
               child: DataTable(
-                columnSpacing: 25.0, // Reduced spacing between columns
+                columnSpacing: 25.0,
                 columns: const [
                   DataColumn(
                     label: Text(
+                      'Profile',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
                       'Date-Time \nReservation',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   DataColumn(
                     label: Text(
                       'Room',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   DataColumn(
                     label: Text(
                       'Username',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   DataColumn(
                     label: Text(
                       'Confirmation',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
                 rows: reservations.map((reservation) {
                   return DataRow(cells: [
+                    DataCell(
+                      GestureDetector(
+                        onTap: () => _pickImage(reservation),
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundImage: reservation.profileImage != null
+                              ? FileImage(reservation.profileImage!)
+                              : null,
+                          child: reservation.profileImage == null
+                              ? const Icon(Icons.add_a_photo, size: 18)
+                              : null,
+                        ),
+                      ),
+                    ),
                     DataCell(Text(reservation.dateTime)),
                     DataCell(Text(reservation.room)),
                     DataCell(Text(reservation.username)),

@@ -1,8 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -12,14 +12,16 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  String url = '192.168.1.173:5554';
-  Map? dashboard = {
-    "totalRoom": 0,
-    "totalSlot": 0,
-    "freeSlot": "0",
-    "pendingRequest": "0",
-    "reservedSlot": "0",
-    "disableSlot": "0"
+  final String url = '192.168.31.90:5554';
+  bool _isLoading = true;
+
+  Map<String, dynamic> dashboard = {
+    "totalRooms": 0,
+    "totalSlots": 0,
+    "freeSlots": 0,
+    "pendingSlots": 0,
+    "reservedSlots": 0,
+    "disabledSlots": 0
   };
 
   @override
@@ -31,235 +33,190 @@ class _DashboardState extends State<Dashboard> {
   Future<void> getDashboard() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      Uri uri = Uri.http(url, '/dashboard');
-      http.Response response = await http.get(
-        uri,
-        headers: {'authorization': 'Bearer $token'},
-      );
+      final uri = Uri.http(url, '/dashboard');
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null) 'authorization': 'Bearer $token',
+      };
+
+      final response =
+          await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
+
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
         setState(() {
-          dashboard = jsonDecode(response.body);
+          dashboard['totalRooms'] = int.tryParse(data['totalRooms'].toString()) ?? 0;
+          dashboard['totalSlots'] = int.tryParse(data['totalSlots']?.toString() ?? '0') ?? 0;
+          dashboard['freeSlots'] = int.tryParse(data['freeSlots'].toString()) ?? 0;
+          dashboard['pendingSlots'] =
+              int.tryParse(data['pendingSlots']?.toString() ?? '0') ?? 0;
+          dashboard['reservedSlots'] = int.tryParse(data['reservedSlots'].toString()) ?? 0;
+          dashboard['disabledSlots'] = int.tryParse(data['disabledSlots']?.toString() ?? '0') ?? 0;
+          _isLoading = false;
         });
-        debugPrint(dashboard?['totalRoom'].toString());
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Server Error: ${response.statusCode}')));
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Network Error: $e')));
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // ดึงขนาดหน้าจอ
-    double screenWidth = MediaQuery.of(context).size.width;
-    double screenHeight = MediaQuery.of(context).size.height;
-
-    // กำหนดขนาดตัวอักษร
-    double titleFontSize = screenWidth * 0.06; // ขนาดตัวอักษรหัวข้อ (Dashboard)
-    double valueFontSize = screenWidth * 0.04; // ขนาดตัวอักษรของค่า
-    double rowTitleFontSize =
-        screenWidth * 0.045; // ขนาดตัวอักษรของข้อความใน Row อื่นๆ
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
+  Widget buildInfoCard(String title, dynamic value, Color color) {
+    return Expanded(
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: color.withOpacity(0.15),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+          child: Column(
             children: [
               Text(
-                'Dashboard',
+                title,
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: titleFontSize, // ปรับขนาดตัวอักษรของ "Dashboard"
-                ),
+                    fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                value.toString(),
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
               ),
             ],
           ),
         ),
-        centerTitle: false,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Total Room',
-                  style: TextStyle(
-                      fontSize:
-                          rowTitleFontSize), // ขนาดตัวอักษรของข้อความใน Row
-                ),
-                Spacer(),
-                Text(
-                  '${dashboard?['totalRoom'] ?? 0}',
-                  textAlign: TextAlign.right,
-                  style:
-                      TextStyle(fontSize: valueFontSize), // ขนาดตัวอักษรของค่า
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  'Total Slot',
-                  style: TextStyle(
-                      fontSize:
-                          rowTitleFontSize), // ขนาดตัวอักษรของข้อความใน Row
-                ),
-                Spacer(),
-                Text(
-                  '${dashboard?['totalSlot'] ?? 0}',
-                  textAlign: TextAlign.right,
-                  style:
-                      TextStyle(fontSize: valueFontSize), // ขนาดตัวอักษรของค่า
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  'Free Slot',
-                  style: TextStyle(
-                      fontSize:
-                          rowTitleFontSize), // ขนาดตัวอักษรของข้อความใน Row
-                ),
-                Spacer(),
-                Text(
-                  '${dashboard?['freeSlot'] ?? 0}',
-                  textAlign: TextAlign.right,
-                  style:
-                      TextStyle(fontSize: valueFontSize), // ขนาดตัวอักษรของค่า
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  'Pending Request',
-                  style: TextStyle(
-                      fontSize:
-                          rowTitleFontSize), // ขนาดตัวอักษรของข้อความใน Row
-                ),
-                Spacer(),
-                Text(
-                  '${dashboard?['pendingRequest'] ?? 0}',
-                  textAlign: TextAlign.right,
-                  style:
-                      TextStyle(fontSize: valueFontSize), // ขนาดตัวอักษรของค่า
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  'Reserved Slot',
-                  style: TextStyle(
-                      fontSize:
-                          rowTitleFontSize), // ขนาดตัวอักษรของข้อความใน Row
-                ),
-                Spacer(),
-                Text(
-                  '${dashboard?['reservedSlot'] ?? 0}',
-                  textAlign: TextAlign.right,
-                  style:
-                      TextStyle(fontSize: valueFontSize), // ขนาดตัวอักษรของค่า
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  'Disabled Slot Today',
-                  style: TextStyle(
-                      fontSize:
-                          rowTitleFontSize), // ขนาดตัวอักษรของข้อความใน Row
-                ),
-                Spacer(),
-                Text(
-                  '${dashboard?['disableSlot'] ?? 0}',
-                  textAlign: TextAlign.right,
-                  style:
-                      TextStyle(fontSize: valueFontSize), // ขนาดตัวอักษรของค่า
-                ),
-              ],
-            ),
+    );
+  }
 
-            // Chart
-            const SizedBox(height: 90),
-            Center(
-              child: SizedBox(
-                height: 320,
-                child: PieChart(
-                  PieChartData(
-                    sections: [
-                      // Free Slot
-                      PieChartSectionData(
-                        color: const Color.fromARGB(184, 67, 169, 72),
-                        value: (double.tryParse(dashboard?['freeSlot']) ?? 1),
-                        title: 'Free Slot',
-                        radius: 75,
-                        titleStyle: TextStyle(
-                          fontSize:
-                              screenWidth * 0.03, // ขนาดตัวอักษรใน Pie Chart
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      // Reserved Slot
-                      PieChartSectionData(
-                        color: const Color.fromARGB(255, 244, 171, 135),
-                        value:
-                            (double.tryParse(dashboard?['reservedSlot']) ?? 1),
-                        title: 'Reserved',
-                        radius: 75,
-                        titleStyle: TextStyle(
-                          fontSize:
-                              screenWidth * 0.03, // ขนาดตัวอักษรใน Pie Chart
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      // Disabled Slot Today
-                      PieChartSectionData(
-                        color: const Color.fromARGB(255, 226, 104, 95),
-                        value:
-                            (double.tryParse(dashboard?['disableSlot']) ?? 1),
-                        title: 'Disabled',
-                        radius: 75,
-                        titleStyle: TextStyle(
-                          fontSize:
-                              screenWidth * 0.03, // ขนาดตัวอักษรใน Pie Chart
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      // Pending Request
-                      PieChartSectionData(
-                        color: const Color.fromARGB(255, 161, 104, 242),
-                        value: (double.tryParse(dashboard?['pendingRequest']) ??
-                            1),
-                        title: 'Pending',
-                        radius: 75,
-                        titleStyle: TextStyle(
-                          fontSize:
-                              screenWidth * 0.03, // ขนาดตัวอักษรใน Pie Chart
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+  List<PieChartSectionData> buildChartSections() {
+    final sections = [
+      {"title": "Free Slot", "key": "freeSlots", "color": Colors.green},
+      {"title": "Reserved", "key": "reservedSlots", "color": Colors.orange},
+      {"title": "Disabled", "key": "disabledSlots", "color": Colors.red},
+      {"title": "Pending", "key": "pendingSlots", "color": Colors.purple},
+    ];
+
+    return sections.map((s) {
+      final value = double.tryParse(dashboard[s["key"]].toString()) ?? 0;
+      return PieChartSectionData(
+        color: s["color"] as Color,
+        value: value, 
+        title: value.toInt().toString(),
+        radius: 80,
+        titleStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        showTitle: true,
+        titlePositionPercentageOffset: 0.55,
+      );
+    }).toList();
+  }
+
+  Widget buildLegend(String title, Color color, int value) {
+    return Row(
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+        ),
+        const SizedBox(width: 8),
+        Text('$title: $value', style: const TextStyle(fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Dashboard"),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: getDashboard,
+          )
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      buildInfoCard("Total Room", dashboard['totalRooms'], Colors.blue),
+                      const SizedBox(width: 10),
+                      buildInfoCard("Total Slot", dashboard['totalSlots'], Colors.teal),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      buildInfoCard("Free Slot", dashboard['freeSlots'], Colors.green),
+                      const SizedBox(width: 10),
+                      buildInfoCard("Reserved", dashboard['reservedSlots'], Colors.orange),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      buildInfoCard("Disabled", dashboard['disabledSlots'], Colors.red),
+                      const SizedBox(width: 10),
+                      buildInfoCard("Pending", dashboard['pendingSlots'], Colors.purple),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    height: 320,
+                    child: PieChart(
+                      PieChartData(
+                        sections: buildChartSections(),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        borderData: FlBorderData(show: false),
+                        pieTouchData: PieTouchData(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      buildLegend("Free Slot", Colors.green, dashboard['freeSlots']),
+                      buildLegend("Reserved", Colors.orange, dashboard['reservedSlots']),
+                      buildLegend("Disabled", Colors.red, dashboard['disabledSlots']),
+                      buildLegend("Pending", Colors.purple, dashboard['pendingSlots']),
+                    ],
+                  )
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:project/Logo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,10 +15,11 @@ class StaffProfile extends StatefulWidget {
 }
 
 class _StaffProfileState extends State<StaffProfile> {
-  final String url = '192.168.1.173:5554'; // URL สำหรับ backend
+  final String url = '192.168.31.90:5554'; // URL สำหรับ backend
   Map<String, String> profileData = {}; // ข้อมูลโปรไฟล์
   List<Map<String, dynamic>> historyData = []; // ข้อมูลประวัติการจอง
   String searchQuery = ''; // ข้อความค้นหา
+  File? profileImage; // เก็บรูปโปรไฟล์ที่เลือก
 
   @override
   void initState() {
@@ -24,7 +27,20 @@ class _StaffProfileState extends State<StaffProfile> {
     getProfileAndHistory();
   }
 
-  // ฟังก์ชันดึงข้อมูลโปรไฟล์และประวัติการจอง
+  // เลือกรูปจาก Gallery
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        profileImage = File(pickedFile.path);
+      });
+      // TODO: อัปโหลดรูปไป backend หากมี API
+    }
+  }
+
+  // ดึงข้อมูลโปรไฟล์และประวัติการจอง
   Future<void> getProfileAndHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -63,7 +79,6 @@ class _StaffProfileState extends State<StaffProfile> {
 
       if (historyResponse.statusCode == 200) {
         final history = jsonDecode(historyResponse.body);
-
         setState(() {
           historyData = _parseHistoryData(history);
         });
@@ -76,7 +91,6 @@ class _StaffProfileState extends State<StaffProfile> {
     }
   }
 
-  // ฟังก์ชันช่วยแปลง role เป็นข้อความ
   String _getRoleName(int role) {
     switch (role) {
       case 1:
@@ -90,7 +104,6 @@ class _StaffProfileState extends State<StaffProfile> {
     }
   }
 
-  // ฟังก์ชันช่วยแปลงข้อมูลประวัติการจอง
   List<Map<String, dynamic>> _parseHistoryData(List<dynamic> data) {
     return List<Map<String, dynamic>>.from(data.map((item) {
       String status;
@@ -116,14 +129,12 @@ class _StaffProfileState extends State<StaffProfile> {
     }));
   }
 
-  // ฟังก์ชันแสดง Snackbar
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
   }
 
-  // ดึงข้อมูลที่กรองตามคำค้นหา
   List<Map<String, dynamic>> get filteredHistoryData {
     if (searchQuery.isEmpty) return historyData;
     return historyData.where((history) {
@@ -136,100 +147,97 @@ class _StaffProfileState extends State<StaffProfile> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Staff Profile')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Profile'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildProfileSection(),
-            const SizedBox(height: 20),
-            _buildSearchBar(),
-            const SizedBox(height: 16),
-            _buildHistoryTable(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ส่วนแสดงข้อมูลโปรไฟล์
-  Widget _buildProfileSection() {
-    return Row(
-      children: [
-        CircleAvatar(radius: 40, backgroundColor: Colors.grey[200]),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(profileData['user_name'] ?? '',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            Text(profileData['role'] ?? ''),
-          ],
-        ),
-        const Spacer(),
-        ElevatedButton(
-          onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.clear();
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const Logo()),
-            );
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE0C9D1)),
-          child: const Text('Logout', style: TextStyle(color: Colors.black)),
-        ),
-      ],
-    );
-  }
-
-  // ส่วนแสดงช่องค้นหา
-  Widget _buildSearchBar() {
-    return TextField(
-      onChanged: (value) => setState(() => searchQuery = value),
-      decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.search),
-        hintText: 'Search',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-      ),
-    );
-  }
-
-  // ส่วนแสดงตารางประวัติการจอง
-  Widget _buildHistoryTable() {
-    return Expanded(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: 35.0,
-          columns: const [
-            DataColumn(label: Text('Date-Time\nReservation')),
-            DataColumn(label: Text('Room')),
-            DataColumn(label: Text('Students')),
-            DataColumn(label: Text('Approved By')),
-            DataColumn(label: Text('Status')),
-          ],
-          rows: filteredHistoryData.map((history) {
-            return DataRow(
-              cells: [
-                DataCell(Text(history['dateTime'] ?? 'N/A')),
-                DataCell(Text(history['room'] ?? 'N/A')),
-                DataCell(Text(history['borrowed_by'] ?? 'N/A')),
-                DataCell(Text(history['approved_by'] ?? 'N/A')),
-                DataCell(Text(
-                  history['status'] ?? 'N/A',
-                  style: TextStyle(
-                    color: history['status'] == 'Approve'
-                        ? Colors.green
-                        : (history['status'] == 'Disapprove'
-                            ? Colors.red
-                            : Colors.orange),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _pickImage, // ✅ กดเพื่อเปลี่ยนรูป
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage:
+                        profileImage != null ? FileImage(profileImage!) : null,
+                    child: profileImage == null
+                        ? const Icon(Icons.add_a_photo, size: 28, color: Colors.grey)
+                        : null,
                   ),
-                )),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(profileData['user_name'] ?? '',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(profileData['role'] ?? ''),
+                  ],
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.clear();
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Logo()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE0C9D1)),
+                  child: const Text('Logout', style: TextStyle(color: Colors.black)),
+                ),
               ],
-            );
-          }).toList(),
+            ),
+            const SizedBox(height: 20),
+            const Text('History', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            TextField(
+              onChanged: (value) => setState(() => searchQuery = value),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columnSpacing: 35.0,
+                  columns: const [
+                    DataColumn(label: Text('Date-Time \nReservation')),
+                    DataColumn(label: Text('Room')),
+                    DataColumn(label: Text('Students')),
+                    DataColumn(label: Text('Status')),
+                  ],
+                  rows: filteredHistoryData.map((history) {
+                    return DataRow(
+                      cells: [
+                        DataCell(Text(history['dateTime'] ?? 'N/A')),
+                        DataCell(Text(history['room'] ?? 'N/A')),
+                        DataCell(Text(history['borrowed_by'] ?? 'N/A')),
+                        DataCell(Text(
+                          history['status'] ?? 'N/A',
+                          style: TextStyle(
+                            color: history['status'] == 'approve'
+                                ? Colors.green
+                                : (history['status'] == 'disapprove' ? Colors.red : Colors.orange),
+                          ),
+                        )),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:project/Logo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 
 class Appprofile extends StatefulWidget {
   const Appprofile({Key? key}) : super(key: key);
@@ -13,10 +15,11 @@ class Appprofile extends StatefulWidget {
 }
 
 class _AppProfileScreenState extends State<Appprofile> {
-  final String url = '192.168.1.173:5554'; // URL สำหรับ backend
-  Map<String, String> profileData = {};
+  final String baseUrl = 'http://192.168.31.90:5554'; // ✅ backend URL
+  Map<String, dynamic> profileData = {};
   List<Map<String, dynamic>> historyData = [];
   String searchQuery = '';
+  File? profileImage;
 
   @override
   void initState() {
@@ -24,21 +27,54 @@ class _AppProfileScreenState extends State<Appprofile> {
     getProfileAndHistory();
   }
 
-  // ดึงข้อมูลโปรไฟล์และประวัติการจองจาก API
+  // ✅ เลือกรูปใหม่
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        profileImage = File(pickedFile.path);
+      });
+      await uploadProfileImage(profileImage!);
+    }
+  }
+
+  // ✅ อัพโหลดรูปไป backend
+  Future<void> uploadProfileImage(File image) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) return;
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse("$baseUrl/profile/upload"),
+    );
+    request.headers['authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath('profile_image', image.path));
+
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      var respStr = await response.stream.bytesToString();
+      var data = jsonDecode(respStr);
+      setState(() {
+        profileData['profile_image'] = data['profile_image'];
+      });
+    } else {
+      debugPrint("Upload failed: ${response.statusCode}");
+    }
+  }
+
+  // ✅ ดึงโปรไฟล์ + history
   Future<void> getProfileAndHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
-
-    if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User not logged in")),
-      );
-      return;
-    }
+    if (token == null) return;
 
     try {
-      // ดึงข้อมูลโปรไฟล์
-      Uri profileUri = Uri.http(url, '/profile');
+      // ดึงโปรไฟล์
+      Uri profileUri = Uri.parse("$baseUrl/profile");
       final profileResponse = await http.get(
         profileUri,
         headers: {'authorization': 'Bearer $token'},
@@ -47,74 +83,45 @@ class _AppProfileScreenState extends State<Appprofile> {
       if (profileResponse.statusCode == 200) {
         final profile = jsonDecode(profileResponse.body);
         setState(() {
-          profileData['user_name'] = profile['user_name'];
+          profileData = profile;
           profileData['role'] = profile['role'] == 1
               ? 'student'
               : (profile['role'] == 2 ? 'approver' : 'staff');
         });
-      } else {
-        debugPrint('Error loading profile: ${profileResponse.statusCode}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to load profile data")),
-        );
       }
 
-// ดึงข้อมูลประวัติการจอง
-Uri historyUri = Uri.http(url, '/information');
-final historyResponse = await http.get(
-  historyUri,
-  headers: {'authorization': 'Bearer $token'},
-);
-
-if (historyResponse.statusCode == 200) {
-  final history = jsonDecode(historyResponse.body);
-
-  // Debug: เช็คข้อมูล history
-  debugPrint('History Data: ${history.toString()}');
-
-  setState(() {
-    historyData = List<Map<String, dynamic>>.from(
-      history.where((item) => item['status'] != 0).map((item) {
-        String status;
-        if (item['status'] == 1) {
-          status = 'approve';
-        } else if (item['status'] == 2) {
-          status = 'disapprove';
-        } else {
-          status = 'pending';
-        }
-
-        String formattedDate = item['booking_date'] != null
-            ? DateFormat('yyyy-MM-dd').format(DateTime.parse(item['booking_date']))
-            : 'N/A';
-
-        // ใช้ booked_by แทน borrowed_by
-        String borrowedBy = item['booked_by']?.toString() ?? 'Unknown';
-
-        // Debug: เช็คค่าของ booked_by
-        debugPrint('Booked By: $borrowedBy');
-
-        return {
-          'dateTime': formattedDate,
-          'room': item['room_name']?.toString() ?? 'N/A',
-          'status': status,
-          'borrowed_by': borrowedBy,  // แก้ไขจาก borrowed_by เป็น booked_by
-        };
-      }),
-    );
-  });
-} else {
-  debugPrint('Error loading history: ${historyResponse.statusCode}');
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Failed to load history data")),
-  );
-}
-
-    } catch (e) {
-      debugPrint('Error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+      // ดึง history (ตรงนี้คุณเขียน endpoint เองได้นะ)
+      Uri historyUri = Uri.parse("$baseUrl/information");
+      final historyResponse = await http.get(
+        historyUri,
+        headers: {'authorization': 'Bearer $token'},
       );
+
+      if (historyResponse.statusCode == 200) {
+        final history = jsonDecode(historyResponse.body);
+        setState(() {
+          historyData = List<Map<String, dynamic>>.from(
+            history.map((item) {
+              String status = item['status'] == 1
+                  ? 'approve'
+                  : (item['status'] == 2 ? 'disapprove' : 'pending');
+
+              String formattedDate = item['booking_date'] != null
+                  ? DateFormat('yyyy-MM-dd').format(DateTime.parse(item['booking_date']))
+                  : 'N/A';
+
+              return {
+                'dateTime': formattedDate,
+                'room': item['room_name'] ?? 'N/A',
+                'status': status,
+                'borrowed_by': item['booked_by'] ?? 'Unknown',
+              };
+            }),
+          );
+        });
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
     }
   }
 
@@ -125,14 +132,18 @@ if (historyResponse.statusCode == 200) {
       return history['dateTime']!.toLowerCase().contains(searchLower) ||
           history['room']!.toLowerCase().contains(searchLower) ||
           history['status']!.toLowerCase().contains(searchLower) ||
-          history['borrowed_by']!.toLowerCase().contains(searchLower); // ใช้ key ใหม่
+          history['borrowed_by']!.toLowerCase().contains(searchLower);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final profileImageUrl = profileData['profile_image'] != null
+        ? "$baseUrl/profilePictures/${profileData['profile_image']}"
+        : null;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('User Profile')),
+      appBar: AppBar(title: const Text('Profile')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -140,7 +151,19 @@ if (historyResponse.statusCode == 200) {
           children: [
             Row(
               children: [
-                CircleAvatar(radius: 40, backgroundColor: Colors.grey[200]),
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: profileImageUrl != null
+                        ? NetworkImage(profileImageUrl)
+                        : null,
+                    child: profileImageUrl == null
+                        ? const Icon(Icons.add_a_photo, size: 28, color: Colors.grey)
+                        : null,
+                  ),
+                ),
                 const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,7 +208,7 @@ if (historyResponse.statusCode == 200) {
                   columns: const [
                     DataColumn(label: Text('Date-Time \nReservation')),
                     DataColumn(label: Text('Room')),
-                    DataColumn(label: Text('Students')), // เปลี่ยนจาก Approver
+                    DataColumn(label: Text('Students')),
                     DataColumn(label: Text('Status')),
                   ],
                   rows: filteredHistoryData.map((history) {
@@ -193,7 +216,7 @@ if (historyResponse.statusCode == 200) {
                       cells: [
                         DataCell(Text(history['dateTime'] ?? 'N/A')),
                         DataCell(Text(history['room'] ?? 'N/A')),
-                        DataCell(Text(history['borrowed_by'] ?? 'N/A')), // ใช้ key ใหม่
+                        DataCell(Text(history['borrowed_by'] ?? 'N/A')),
                         DataCell(Text(
                           history['status'] ?? 'N/A',
                           style: TextStyle(
